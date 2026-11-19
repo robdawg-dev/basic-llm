@@ -1,0 +1,50 @@
+# --- Python ---
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.ipynb_checkpoints/
+
+# --- Virtual environments / secrets ---
+.venv/
+venv/
+env/
+.env
+.env.*
+
+# --- Model checkpoints, weights, tokenized data (large; regenerate locally) ---
+*.pt
+*.pth
+*.ckpt
+*.safetensors
+*.npz
+*.bin
+*_log.jsonl
+wandb/
+runs/
+
+# numpy/ script outputs (see numpy/paths.py)
+numpy/out/
+shake_ckpt.json
+*_losses.npy
+lrs_*.npy
+
+# --- Scratch files ---
+new *.txt
+*.zip
+
+# --- Editors / OS ---
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# --- Claude Code local settings ---
+.claude/settings.local.json

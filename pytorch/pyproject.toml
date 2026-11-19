@@ -1,0 +1,51 @@
+[project]
+name = "llm-from-scratch"
+version = "0.1.0"
+description = "A modern decoder-only LLM (RoPE, GQA, SwiGLU, RMSNorm, KV cache) trained end-to-end on a single 12 GB GPU"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "torch>=2.4",
+    "numpy>=1.26",
+]
+
+[project.scripts]
+train-gpt = "train_gpt:main"
+prepare-data = "prepare_data:main"
+
+[project.optional-dependencies]
+# uv sync --extra data   -> real-corpus preparation (TinyStories, FineWeb)
+data = ["tokenizers>=0.19", "datasets>=2.19"]
+# uv sync --extra plot   -> loss-curve plotting from ckpt_log.jsonl
+plot = ["pandas>=2.0", "matplotlib>=3.8"]
+# uv sync --extra compile -> --compile on Windows (needs cl.exe: Visual
+# Studio Build Tools, "Desktop development with C++" workload). Pinned to
+# match torch's triton==3.8.0 requirement (see torch's own requires-dist).
+compile = ["triton-windows>=3.8.0.post28,<3.9 ; sys_platform == 'win32'"]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+# Flat single-module layout: the whole trainer is train_gpt.py.
+py-modules = ["train_gpt", "prepare_data"]
+
+# -------------------------------------------------------------------------
+# GPU wheels — READ THIS ON WINDOWS:
+#   * Linux: PyPI's default torch wheel bundles CUDA 12 and works as-is.
+#   * Windows: PyPI serves CPU-ONLY torch, so this project always pins
+#     PyTorch's own index below. cu132 matches a driver reporting "CUDA
+#     Version: 13.2" in nvidia-smi (any driver whose reported CUDA Version
+#     is >= the wheel's cuXXX works, via backward compatibility) — if
+#     yours reports lower, swap both cu132s below for cu128/cu126/etc.,
+#     then run: uv lock && uv sync
+# -------------------------------------------------------------------------
+
+[[tool.uv.index]]
+name = "pytorch-cu132"
+url = "https://download.pytorch.org/whl/cu132"
+explicit = true
+
+[tool.uv.sources]
+torch = { index = "pytorch-cu132" }

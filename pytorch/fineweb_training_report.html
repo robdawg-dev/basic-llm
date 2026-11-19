@@ -1,0 +1,717 @@
+<title>FineWeb-Edu Run</title>
+<meta name="description" content="Loss, learning-rate, gradient-norm and throughput curves for the fineweb-preset training run on FineWeb-Edu, plus sample generations.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    color-scheme: light;
+    --page:        #f6f4ef;
+    --surface:      #ffffff;
+    --surface-2:    #fbfaf6;
+    --text-primary: #15130f;
+    --text-secondary: #57534a;
+    --text-muted:   #8c877c;
+    --border:       rgba(21,19,15,0.10);
+    --border-strong: rgba(21,19,15,0.16);
+    --accent:       #0d6e66;
+    --accent-ink:   #ffffff;
+    --accent-soft:  #e3f1ef;
+    --grid:         #e1e0d9;
+    --axis:         #c3c2b7;
+    --series-train: #2a78d6;
+    --series-val:   #eb6834;
+    --chart-surface:#fcfcfb;
+    --quote-mark:   #d8d5cb;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --page:        #0d0f0e;
+      --surface:      #151815;
+      --surface-2:    #1a1e1b;
+      --text-primary: #f5f4f0;
+      --text-secondary: #b8b4a9;
+      --text-muted:   #83807a;
+      --border:       rgba(255,255,255,0.10);
+      --border-strong: rgba(255,255,255,0.16);
+      --accent:       #2bd6c4;
+      --accent-ink:   #06201d;
+      --accent-soft:  rgba(43,214,196,0.14);
+      --grid:         #2c2c2a;
+      --axis:         #3a3a37;
+      --series-train: #3987e5;
+      --series-val:   #d95926;
+      --chart-surface:#1a1a19;
+      --quote-mark:   #34332f;
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --page:        #0d0f0e;
+    --surface:      #151815;
+    --surface-2:    #1a1e1b;
+    --text-primary: #f5f4f0;
+    --text-secondary: #b8b4a9;
+    --text-muted:   #83807a;
+    --border:       rgba(255,255,255,0.10);
+    --border-strong: rgba(255,255,255,0.16);
+    --accent:       #2bd6c4;
+    --accent-ink:   #06201d;
+    --accent-soft:  rgba(43,214,196,0.14);
+    --grid:         #2c2c2a;
+    --axis:         #3a3a37;
+    --series-train: #3987e5;
+    --series-val:   #d95926;
+    --chart-surface:#1a1a19;
+    --quote-mark:   #34332f;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    background: var(--page);
+    color: var(--text-primary);
+    font-family: "IBM Plex Sans", system-ui, -apple-system, sans-serif;
+    line-height: 1.5;
+  }
+  .wrap {
+    max-width: 1080px;
+    margin: 0 auto;
+    padding: 40px 24px 72px;
+    display: flex;
+    flex-direction: column;
+    gap: 28px;
+  }
+
+  .masthead {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding-bottom: 24px;
+    border-bottom: 1px solid var(--border);
+  }
+  .eyebrow {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--accent);
+    font-weight: 500;
+  }
+  h1 {
+    margin: 0;
+    font-size: clamp(28px, 4vw, 38px);
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    text-wrap: balance;
+  }
+  .dek {
+    color: var(--text-secondary);
+    font-size: 15px;
+    max-width: 68ch;
+  }
+  .cmd {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 12.5px;
+    color: var(--text-secondary);
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 10px 14px;
+    overflow-x: auto;
+    white-space: pre;
+    width: fit-content;
+    max-width: 100%;
+  }
+  .cmd b { color: var(--text-primary); font-weight: 500; }
+
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 1px;
+    background: var(--border);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+  .stat {
+    background: var(--surface);
+    padding: 16px 16px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+  }
+  .stat .label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-muted);
+  }
+  .stat .value {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 21px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    color: var(--text-primary);
+    white-space: nowrap;
+  }
+  .stat .value.accent { color: var(--accent); }
+  .stat .sub { font-size: 11.5px; color: var(--text-muted); }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px 20px 16px;
+  }
+  .card-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 4px;
+    flex-wrap: wrap;
+  }
+  .card-title { font-size: 14px; font-weight: 600; }
+  .card-note { font-size: 12px; color: var(--text-muted); font-family: "IBM Plex Mono", monospace; }
+
+  .legend { display: flex; gap: 16px; font-size: 12px; color: var(--text-secondary); }
+  .legend-item { display: flex; align-items: center; gap: 6px; }
+  .legend-key { width: 14px; height: 2px; border-radius: 1px; display: inline-block; }
+
+  .grid-3 {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+  }
+
+  .chart-svg { width: 100%; aspect-ratio: 2 / 1; display: block; overflow: visible; }
+  .big .chart-svg { aspect-ratio: 21 / 9; }
+
+  .axis-label-x, .axis-label-y { font-size: 10.5px; fill: var(--text-muted); font-family: "IBM Plex Mono", monospace; }
+  .grid-line { stroke: var(--grid); stroke-width: 1; }
+  .axis-line { stroke: var(--axis); stroke-width: 1; }
+  .end-label { font-size: 11px; font-family: "IBM Plex Mono", monospace; font-weight: 600; }
+
+  .chart-tip {
+    position: absolute;
+    pointer-events: none;
+    background: var(--surface);
+    border: 1px solid var(--border-strong);
+    border-radius: 8px;
+    padding: 8px 10px;
+    font-size: 12px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+    opacity: 0;
+    transition: opacity 0.08s ease;
+    z-index: 5;
+    min-width: 120px;
+  }
+  .chart-tip.show { opacity: 1; }
+  .chart-tip .tip-x {
+    font-family: "IBM Plex Mono", monospace;
+    color: var(--text-muted);
+    font-size: 10.5px;
+    margin-bottom: 4px;
+  }
+  .chart-tip .tip-row { display: flex; align-items: center; gap: 6px; justify-content: space-between; }
+  .chart-tip .tip-row + .tip-row { margin-top: 2px; }
+  .chart-tip .tip-key { display: flex; align-items: center; gap: 6px; color: var(--text-secondary); }
+  .chart-tip .tip-swatch { width: 8px; height: 8px; border-radius: 2px; flex: none; }
+  .chart-tip .tip-val { font-family: "IBM Plex Mono", monospace; font-weight: 600; font-variant-numeric: tabular-nums; }
+
+  .chart-frame { position: relative; }
+
+  .samples-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .samples-title { font-size: 16px; font-weight: 700; }
+  .samples-note { font-size: 12.5px; color: var(--text-muted); max-width: 52ch; }
+  .sample-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 14px;
+  }
+  .sample-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 18px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .sample-prompt {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--accent);
+  }
+  .sample-text {
+    font-size: 14px;
+    line-height: 1.6;
+    color: var(--text-primary);
+  }
+  .sample-text .prompt-span { font-weight: 600; }
+
+  details.log { border: 1px solid var(--border); border-radius: 12px; background: var(--surface); overflow: hidden; }
+  details.log summary {
+    cursor: pointer;
+    padding: 14px 20px;
+    font-size: 13px;
+    font-weight: 600;
+    list-style: none;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--text-secondary);
+  }
+  details.log summary::-webkit-details-marker { display: none; }
+  details.log summary::before {
+    content: "▸";
+    color: var(--accent);
+    transition: transform 0.12s ease;
+    font-size: 11px;
+  }
+  details.log[open] summary::before { transform: rotate(90deg); }
+  .log-table-wrap { overflow-x: auto; border-top: 1px solid var(--border); }
+  table.log-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 12.5px;
+    font-variant-numeric: tabular-nums;
+  }
+  table.log-table th, table.log-table td {
+    padding: 8px 16px;
+    text-align: right;
+    white-space: nowrap;
+    border-bottom: 1px solid var(--border);
+  }
+  table.log-table th:first-child, table.log-table td:first-child { text-align: left; }
+  table.log-table th {
+    color: var(--text-muted);
+    font-weight: 500;
+    text-transform: uppercase;
+    font-size: 10.5px;
+    letter-spacing: 0.04em;
+  }
+  table.log-table tbody tr:last-child td { border-bottom: none; }
+  table.log-table tbody tr:hover { background: var(--surface-2); }
+
+  footer {
+    font-size: 12px;
+    color: var(--text-muted);
+    padding-top: 8px;
+    border-top: 1px solid var(--border);
+  }
+  footer a { color: var(--accent); }
+  footer code, .dek code, .samples-note code { font-family: "IBM Plex Mono", monospace; font-size: 0.93em; }
+
+  @media (max-width: 860px) {
+    .stats { grid-template-columns: repeat(3, 1fr); }
+    .grid-3 { grid-template-columns: 1fr; }
+    .sample-grid { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 520px) {
+    .stats { grid-template-columns: repeat(2, 1fr); }
+  }
+</style>
+
+<div class="wrap">
+
+  <div class="masthead">
+    <div class="eyebrow">Training report &middot; llm-from-scratch</div>
+    <h1>fineweb on FineWeb-Edu</h1>
+    <div class="dek">
+      A 113.3M-parameter decoder (RoPE + GQA + SwiGLU, tied embeddings)
+      trained from scratch on 1.9B tokens of FineWeb-Edu, tokenized with
+      SmolLM2's 49,152-vocab tokenizer. Single RTX 4070 SUPER, torch
+      2.14.0+cu132, <code>--compile --fused_ce</code> (native
+      <code>nn.LinearCrossEntropyLoss</code>). Under one epoch over the
+      sampled corpus &mdash; FineWeb-Edu is large and deduplicated enough
+      that less than a full pass is the norm, unlike the TinyStories runs
+      before it.
+    </div>
+    <div class="cmd">train-gpt --preset fineweb --data_dir data_fineweb --out ckpt_fineweb.pt <b>--max_steps 3865 --warmup_steps 150 --eval_every 200 --ckpt_every 200 --compile --fused_ce</b></div>
+  </div>
+
+  <div class="stats">
+    <div class="stat">
+      <div class="label">Final train loss</div>
+      <div class="value">3.245</div>
+      <div class="sub">from 10.958 at step 0</div>
+    </div>
+    <div class="stat">
+      <div class="label">Final val loss</div>
+      <div class="value">3.262</div>
+      <div class="sub">tracks train &mdash; no overfit</div>
+    </div>
+    <div class="stat">
+      <div class="label">Wall clock</div>
+      <div class="value">8h 38m</div>
+      <div class="sub">31,108s end to end</div>
+    </div>
+    <div class="stat">
+      <div class="label">Throughput</div>
+      <div class="value accent">61.1k</div>
+      <div class="sub">tok/s, steady-state</div>
+    </div>
+    <div class="stat">
+      <div class="label">Tokens seen</div>
+      <div class="value">1.90B</div>
+      <div class="sub">491,520 / step</div>
+    </div>
+    <div class="stat">
+      <div class="label">Params</div>
+      <div class="value">113.3M</div>
+      <div class="sub">vocab 49,152</div>
+    </div>
+  </div>
+
+  <div class="card big">
+    <div class="card-head">
+      <div class="card-title">Loss</div>
+      <div class="legend">
+        <span class="legend-item"><span class="legend-key" style="background:var(--series-train)"></span>train</span>
+        <span class="legend-item"><span class="legend-key" style="background:var(--series-val)"></span>val</span>
+      </div>
+      <div class="card-note">log scale</div>
+    </div>
+    <div class="chart-frame" id="chart-loss"></div>
+  </div>
+
+  <div class="grid-3">
+    <div class="card">
+      <div class="card-head">
+        <div class="card-title">Learning rate</div>
+        <div class="card-note">warmup 150 &middot; cosine</div>
+      </div>
+      <div class="chart-frame" id="chart-lr"></div>
+    </div>
+    <div class="card">
+      <div class="card-head">
+        <div class="card-title">Gradient norm</div>
+        <div class="card-note">log scale</div>
+      </div>
+      <div class="chart-frame" id="chart-gnorm"></div>
+    </div>
+    <div class="card">
+      <div class="card-head">
+        <div class="card-title">Throughput</div>
+        <div class="card-note">tok/s</div>
+      </div>
+      <div class="chart-frame" id="chart-toks"></div>
+    </div>
+  </div>
+
+  <div class="card" style="padding-bottom: 20px;">
+    <div class="samples-head">
+      <div class="samples-title">What it writes</div>
+      <div class="samples-note">
+        Sampled from the finished checkpoint (<code>--stop_token 0</code>,
+        temperature/top-p defaults). Fluent, on-topic, structurally
+        correct &mdash; and often factually wrong, which is the expected
+        ceiling for 113M params under two billion tokens: style and
+        structure arrive well before reliable facts do.
+      </div>
+    </div>
+    <div class="sample-grid" style="margin-top: 14px;">
+      <div class="sample-card">
+        <div class="sample-prompt">Prompt: &ldquo;The history of&rdquo;</div>
+        <div class="sample-text"><span class="prompt-span">The history of</span> Nepal dates back to the 7th century CE, and it was a major trade centre for the rich Chola (Rajasthan), which was established in the late 16th century by King Jaika Vipassana who ruled Nepal from 920&ndash;538. By the end of the Great Migration that took place in the Kedarnath region, and by then subsequent invaders, brought India into turmoil with its diverse human populations.</div>
+      </div>
+      <div class="sample-card">
+        <div class="sample-prompt">Prompt: &ldquo;Scientists have discovered&rdquo;</div>
+        <div class="sample-text"><span class="prompt-span">Scientists have discovered</span> the key mechanism to go supernova. Other possible explanations for our solar system&rsquo;s spiral arms&mdash;according to lead author Dr Alon Musk&hellip; &ldquo;The weak gravitational pull in the spiral arms is so powerful that the material in them becomes an invisible sphere.&rdquo; In fact, the shock from this force causes an electrical current to flow through each star&rsquo;s nucleus.</div>
+      </div>
+      <div class="sample-card">
+        <div class="sample-prompt">Prompt: &ldquo;To understand how photosynthesis works&rdquo;</div>
+        <div class="sample-text"><span class="prompt-span">To understand how photosynthesis works.</span> We think that the carbon fixation process of plants produces sugar and hydrogen to be exchanged into its final form, which can then be used as a fuel for industry or it can also be used as fertiliser by farmers&hellip; reducing soil erosion, promoting crop diversity and feeding species with high yields.</div>
+      </div>
+      <div class="sample-card">
+        <div class="sample-prompt">Prompt: &ldquo;The best way to learn&rdquo;</div>
+        <div class="sample-text"><span class="prompt-span">The best way to learn</span> the basics of energy management is through reading. If you&rsquo;re a good scholar and want to be sure that you get the following information on how to make your workplace energy efficient, then this article will give you a practical guide to designing your work energy efficiency plan, specifically for beginners who need more insight into these concepts.</div>
+      </div>
+    </div>
+  </div>
+
+  <details class="log">
+    <summary>View raw log &mdash; 21 rows from ckpt_fineweb_log.jsonl</summary>
+    <div class="log-table-wrap">
+      <table class="log-table" id="log-table"></table>
+    </div>
+  </details>
+
+  <footer>
+    Data source: <code>ckpt_fineweb_log.jsonl</code>. Tokenizer:
+    <code>smollm2_tokenizer.json</code> (SmolLM2's, vocab 49,152,
+    <code>&lt;|endoftext|&gt;</code> at id 0). Checkpoints:
+    <code>ckpt_fineweb.pt</code> / <code>ckpt_fineweb_best.pt</code>.
+    Trained in Docker (<code>llm-fineweb</code> image) for a more reliable
+    unattended run than native Windows &mdash; see this project's
+    RUNBOOK.md for the full setup.
+  </footer>
+
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  var DATA = [
+    {step:0,    train:10.9579, val:10.8728, lr:0.0000040000, gnorm:7.999, tok_s:8014,  wall_s:61.3},
+    {step:200,  train:5.0659,  val:5.0963,  lr:0.0005997587, gnorm:0.554, tok_s:59980, wall_s:1647.1},
+    {step:400,  train:4.3023,  val:4.3471,  lr:0.0005939886, gnorm:0.483, tok_s:60843, wall_s:3239.5},
+    {step:600,  train:3.9093,  val:3.9646,  lr:0.0005806850, gnorm:0.272, tok_s:61120, wall_s:4833.2},
+    {step:800,  train:3.7464,  val:3.7805,  lr:0.0005602278, gnorm:0.296, tok_s:61194, wall_s:6433.7},
+    {step:1000, train:3.6807,  val:3.6739,  lr:0.0005332005, gnorm:0.271, tok_s:61187, wall_s:8041.1},
+    {step:1200, train:3.5645,  val:3.5957,  lr:0.0005003745, gnorm:0.261, tok_s:61199, wall_s:9645.8},
+    {step:1400, train:3.5336,  val:3.5345,  lr:0.0004626865, gnorm:0.224, tok_s:61038, wall_s:11281.9},
+    {step:1600, train:3.4664,  val:3.4881,  lr:0.0004212121, gnorm:0.220, tok_s:61063, wall_s:12887.1},
+    {step:1800, train:3.4387,  val:3.4512,  lr:0.0003771348, gnorm:0.245, tok_s:61081, wall_s:14492.8},
+    {step:2000, train:3.4069,  val:3.4171,  lr:0.0003317124, gnorm:0.238, tok_s:61079, wall_s:16102.6},
+    {step:2200, train:3.3773,  val:3.3877,  lr:0.0002862412, gnorm:0.212, tok_s:61129, wall_s:17697.7},
+    {step:2400, train:3.3004,  val:3.3620,  lr:0.0002420186, gnorm:0.226, tok_s:61174, wall_s:19291.5},
+    {step:2600, train:3.2974,  val:3.3384,  lr:0.0002003068, gnorm:0.210, tok_s:61197, wall_s:20890.6},
+    {step:2800, train:3.3127,  val:3.3192,  lr:0.0001622961, gnorm:0.225, tok_s:61148, wall_s:22515.1},
+    {step:3000, train:3.2843,  val:3.3030,  lr:0.0001290710, gnorm:0.215, tok_s:61088, wall_s:24146.2},
+    {step:3200, train:3.2795,  val:3.2895,  lr:0.0001015799, gnorm:0.222, tok_s:61073, wall_s:25761.9},
+    {step:3400, train:3.2552,  val:3.2774,  lr:0.0000806072, gnorm:0.220, tok_s:61102, wall_s:27358.7},
+    {step:3600, train:3.2306,  val:3.2699,  lr:0.0000667513, gnorm:0.213, tok_s:61118, wall_s:28960.0},
+    {step:3800, train:3.2169,  val:3.2631,  lr:0.0000604078, gnorm:0.228, tok_s:61079, wall_s:30587.8},
+    {step:3864, train:3.2451,  val:3.2617,  lr:0.0000600001, gnorm:0.215, tok_s:61068, wall_s:31108.3}
+  ];
+
+  var SVGNS = "http://www.w3.org/2000/svg";
+  function el(name, attrs) {
+    var n = document.createElementNS(SVGNS, name);
+    for (var k in attrs) n.setAttribute(k, attrs[k]);
+    return n;
+  }
+  function log10(v) { return Math.log(v) / Math.LN10; }
+  function fmtStep(s) { return s.toLocaleString(); }
+
+  var VB_W = 600, VB_H = 300;
+
+  function buildChart(container, opts) {
+    var margin = { l: 46, r: 14, t: 14, b: 24 };
+    var pw = VB_W - margin.l - margin.r;
+    var ph = VB_H - margin.t - margin.b;
+    var xDomain = [DATA[0].step, DATA[DATA.length - 1].step];
+
+    function px(x) { return margin.l + (x - xDomain[0]) / (xDomain[1] - xDomain[0]) * pw; }
+    function py(y) {
+      if (opts.scale === "log") {
+        var t = (log10(y) - log10(opts.yDomain[0])) / (log10(opts.yDomain[1]) - log10(opts.yDomain[0]));
+        return margin.t + (1 - t) * ph;
+      }
+      var t2 = (y - opts.yDomain[0]) / (opts.yDomain[1] - opts.yDomain[0]);
+      return margin.t + (1 - t2) * ph;
+    }
+
+    var svg = el("svg", { viewBox: "0 0 " + VB_W + " " + VB_H, class: "chart-svg" });
+
+    opts.yTicks.forEach(function (t) {
+      var y = py(t.v);
+      svg.appendChild(el("line", { x1: margin.l, x2: VB_W - margin.r, y1: y, y2: y, class: "grid-line" }));
+      var lbl = el("text", { x: margin.l - 8, y: y + 3.5, "text-anchor": "end", class: "axis-label-y" });
+      lbl.textContent = t.label;
+      svg.appendChild(lbl);
+    });
+
+    svg.appendChild(el("line", { x1: margin.l, x2: VB_W - margin.r, y1: margin.t + ph, y2: margin.t + ph, class: "axis-line" }));
+    opts.xTicks.forEach(function (t) {
+      var x = px(t.v);
+      var lbl = el("text", { x: x, y: VB_H - 4, "text-anchor": "middle", class: "axis-label-x" });
+      lbl.textContent = t.label;
+      svg.appendChild(lbl);
+    });
+
+    opts.series.forEach(function (s) {
+      var d = DATA.map(function (row, i) {
+        var cmd = i === 0 ? "M" : "L";
+        return cmd + px(row.step).toFixed(2) + " " + py(row[s.key]).toFixed(2);
+      }).join(" ");
+      svg.appendChild(el("path", { d: d, fill: "none", stroke: s.color, "stroke-width": 2, "stroke-linejoin": "round", "stroke-linecap": "round" }));
+
+      var last = DATA[DATA.length - 1];
+      var ex = px(last.step), ey = py(last[s.key]);
+      svg.appendChild(el("circle", { cx: ex, cy: ey, r: 4, fill: s.color, stroke: "var(--chart-surface)", "stroke-width": 2 }));
+
+      if (opts.endLabel) {
+        var elbl = el("text", { x: ex - 8, y: ey - 10, "text-anchor": "end", class: "end-label", fill: s.color });
+        elbl.textContent = opts.valueFmt(last[s.key]);
+        svg.appendChild(elbl);
+      }
+    });
+
+    var crosshair = el("line", { x1: 0, x2: 0, y1: margin.t, y2: margin.t + ph, stroke: "var(--axis)", "stroke-width": 1, "stroke-dasharray": "2,3", opacity: 0 });
+    svg.appendChild(crosshair);
+    var hitDots = opts.series.map(function (s) {
+      var c = el("circle", { r: 4.5, fill: s.color, stroke: "var(--chart-surface)", "stroke-width": 2, opacity: 0 });
+      svg.appendChild(c);
+      return c;
+    });
+
+    container.appendChild(svg);
+
+    var tip = document.createElement("div");
+    tip.className = "chart-tip";
+    container.appendChild(tip);
+
+    function nearestIndex(stepVal) {
+      var best = 0, bestD = Infinity;
+      DATA.forEach(function (row, i) {
+        var d = Math.abs(row.step - stepVal);
+        if (d < bestD) { bestD = d; best = i; }
+      });
+      return best;
+    }
+
+    function onMove(evt) {
+      var rect = svg.getBoundingClientRect();
+      var relX = (evt.clientX - rect.left) / rect.width;
+      var xVal = xDomain[0] + relX * (xDomain[1] - xDomain[0]);
+      var idx = nearestIndex(xVal);
+      var row = DATA[idx];
+      var cx = px(row.step);
+
+      crosshair.setAttribute("x1", cx);
+      crosshair.setAttribute("x2", cx);
+      crosshair.setAttribute("opacity", 1);
+
+      opts.series.forEach(function (s, i) {
+        hitDots[i].setAttribute("cx", cx);
+        hitDots[i].setAttribute("cy", py(row[s.key]));
+        hitDots[i].setAttribute("opacity", 1);
+      });
+
+      tip.innerHTML = "";
+      var xEl = document.createElement("div");
+      xEl.className = "tip-x";
+      xEl.textContent = "step " + fmtStep(row.step);
+      tip.appendChild(xEl);
+      opts.series.forEach(function (s) {
+        var rowEl = document.createElement("div");
+        rowEl.className = "tip-row";
+        var keyEl = document.createElement("div");
+        keyEl.className = "tip-key";
+        var sw = document.createElement("span");
+        sw.className = "tip-swatch";
+        sw.style.background = s.color;
+        keyEl.appendChild(sw);
+        var nameEl = document.createElement("span");
+        nameEl.textContent = s.label;
+        keyEl.appendChild(nameEl);
+        rowEl.appendChild(keyEl);
+        var valEl = document.createElement("div");
+        valEl.className = "tip-val";
+        valEl.textContent = opts.valueFmt(row[s.key]);
+        rowEl.appendChild(valEl);
+        tip.appendChild(rowEl);
+      });
+      tip.classList.add("show");
+
+      var tipRect = tip.getBoundingClientRect();
+      var left = cx / VB_W * rect.width + 12;
+      if (left + tipRect.width > rect.width) left = cx / VB_W * rect.width - tipRect.width - 12;
+      tip.style.left = left + "px";
+      tip.style.top = "4px";
+    }
+    function onLeave() {
+      crosshair.setAttribute("opacity", 0);
+      hitDots.forEach(function (d) { d.setAttribute("opacity", 0); });
+      tip.classList.remove("show");
+    }
+    svg.addEventListener("pointermove", onMove);
+    svg.addEventListener("pointerleave", onLeave);
+  }
+
+  var xTicksAll = [0, 800, 1600, 2400, 3200, 3864].map(function (v) { return { v: v, label: String(v) }; });
+
+  buildChart(document.getElementById("chart-loss"), {
+    series: [
+      { key: "train", label: "train", color: "var(--series-train)" },
+      { key: "val", label: "val", color: "var(--series-val)" }
+    ],
+    scale: "log",
+    yDomain: [3.0, 11.5],
+    yTicks: [3, 4, 5, 7, 10].map(function (v) { return { v: v, label: String(v) }; }),
+    xTicks: xTicksAll,
+    valueFmt: function (v) { return v.toFixed(3); },
+    endLabel: false
+  });
+
+  buildChart(document.getElementById("chart-lr"), {
+    series: [{ key: "lr", label: "lr", color: "var(--series-train)" }],
+    scale: "linear",
+    yDomain: [0, 0.00065],
+    yTicks: [0, 0.0002, 0.0004, 0.0006].map(function (v) {
+      return { v: v, label: v === 0 ? "0" : v.toExponential(0) };
+    }),
+    xTicks: xTicksAll,
+    valueFmt: function (v) { return v.toExponential(2); },
+    endLabel: true
+  });
+
+  buildChart(document.getElementById("chart-gnorm"), {
+    series: [{ key: "gnorm", label: "gnorm", color: "var(--series-train)" }],
+    scale: "log",
+    yDomain: [0.18, 9],
+    yTicks: [0.25, 0.5, 1, 2, 4, 8].map(function (v) { return { v: v, label: String(v) }; }),
+    xTicks: xTicksAll,
+    valueFmt: function (v) { return v.toFixed(3); },
+    endLabel: true
+  });
+
+  buildChart(document.getElementById("chart-toks"), {
+    series: [{ key: "tok_s", label: "tok/s", color: "var(--series-train)" }],
+    scale: "linear",
+    yDomain: [0, 65000],
+    yTicks: [0, 20000, 40000, 60000].map(function (v) { return { v: v, label: (v / 1000) + "k" }; }),
+    xTicks: xTicksAll,
+    valueFmt: function (v) { return v.toLocaleString() + " tok/s"; },
+    endLabel: true
+  });
+
+  var table = document.getElementById("log-table");
+  var thead = document.createElement("thead");
+  var headRow = document.createElement("tr");
+  ["step", "train", "val", "lr", "gnorm", "tok/s", "wall"].forEach(function (h) {
+    var th = document.createElement("th");
+    th.textContent = h;
+    headRow.appendChild(th);
+  });
+  thead.appendChild(headRow);
+  table.appendChild(thead);
+
+  var tbody = document.createElement("tbody");
+  DATA.forEach(function (row) {
+    var tr = document.createElement("tr");
+    var wallMin = row.wall_s / 60;
+    var cells = [
+      fmtStep(row.step),
+      row.train.toFixed(4),
+      row.val.toFixed(4),
+      row.lr.toExponential(2),
+      row.gnorm.toFixed(3),
+      row.tok_s.toLocaleString(),
+      wallMin.toFixed(1) + "m"
+    ];
+    cells.forEach(function (c) {
+      var td = document.createElement("td");
+      td.textContent = c;
+      tr.appendChild(td);
+    });
+    tbody.appendChild(tr);
+  });
+  table.appendChild(tbody);
+})();
+</script>

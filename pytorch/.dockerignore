@@ -1,0 +1,13 @@
+.venv/
+__pycache__/
+*.egg-info/
+data/
+data_fineweb/
+*.bin
+*.pt
+*_log.jsonl
+*.npy
+*.json
+uv.lock
+training_report.html
+new 4.txt
